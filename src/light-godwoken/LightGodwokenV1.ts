@@ -38,7 +38,6 @@ import {
   getLatestConfigFromLocalStorage,
 } from "./constants/configManager";
 import { GodwokenVersion } from "./constants/configTypes";
-import { isMainnet } from "./env";
 import { Contract as MulticallContract, Provider as MulticallProvider, setMulticallAddress } from "ethers-multicall";
 import { BigNumber, providers } from "ethers";
 export default class DefaultLightGodwokenV1 extends DefaultLightGodwoken implements LightGodwokenV1 {
@@ -136,7 +135,7 @@ export default class DefaultLightGodwokenV1 extends DefaultLightGodwoken impleme
   getBuiltinSUDTList(): SUDT[] {
     const sudtList: SUDT[] = [];
     const sudtScriptConfig = this.provider.getConfig().layer1Config.SCRIPTS.sudt;
-    getTokenList(isMainnet).v1.forEach((token) => {
+    getTokenList().v1.forEach((token) => {
       const tokenL1Script: Script = {
         code_hash: sudtScriptConfig.code_hash,
         hash_type: sudtScriptConfig.hash_type as HashType,
@@ -155,7 +154,7 @@ export default class DefaultLightGodwokenV1 extends DefaultLightGodwoken impleme
   getBuiltinErc20List(): ProxyERC20[] {
     const map: ProxyERC20[] = [];
     const sudtScriptConfig = this.provider.getConfig().layer1Config.SCRIPTS.sudt;
-    getTokenList(isMainnet).v1.forEach((token) => {
+    getTokenList().v1.forEach((token) => {
       const tokenL1Script: Script = {
         code_hash: sudtScriptConfig.code_hash,
         hash_type: sudtScriptConfig.hash_type as HashType,
@@ -192,6 +191,8 @@ export default class DefaultLightGodwokenV1 extends DefaultLightGodwoken impleme
     );
 
     const balances: BigNumber[] = await multicall.all(calls);
+    console.log("getErc20BalancesViaMulticall", balances);
+
     return { balances: balances.map((b) => b.toHexString()) };
   }
 

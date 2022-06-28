@@ -18,6 +18,9 @@ import {
 } from "./lightGodwokenType";
 import { getTokenList } from "./constants/tokens";
 import { AbiItems } from "@polyjuice-provider/base";
+import { provider } from "web3-core";
+import polyjuice from "@polyjuice-provider/web3";
+import { PolyjuiceHttpProvider } from "@polyjuice-provider/web3";
 import { SUDT_ERC20_PROXY_ABI } from "./constants/sudtErc20ProxyAbi";
 import { GodwokenClient } from "./godwoken/godwokenV0";
 import LightGodwokenProvider from "./lightGodwokenProvider";
@@ -37,10 +40,11 @@ import {
 import { GodwokenVersion } from "./constants/configTypes";
 import { getAdvancedSettings } from "./constants/configManager";
 import { GodwokenScanner } from "./godwoken/godwokenScannerV1";
-import { isMainnet } from "./env";
+import Multicall from "@dopex-io/web3-multicall";
 export default class DefaultLightGodwokenV0 extends DefaultLightGodwoken implements LightGodwokenV0 {
   godwokenClient;
   godwokenScannerClient;
+  multicallProvider: Multicall | null = null;
   constructor(provider: LightGodwokenProvider) {
     super(provider);
     this.godwokenClient = new GodwokenClient(provider.getLightGodwokenConfig().layer2Config.GW_POLYJUICE_RPC_URL);
@@ -92,7 +96,7 @@ export default class DefaultLightGodwokenV0 extends DefaultLightGodwoken impleme
   getBuiltinErc20List(): ProxyERC20[] {
     const map: ProxyERC20[] = [];
     const sudtScriptConfig = this.provider.getConfig().layer1Config.SCRIPTS.sudt;
-    getTokenList(isMainnet).v0.forEach((token) => {
+    getTokenList().v0.forEach((token) => {
       const tokenL1Script: Script = {
         code_hash: sudtScriptConfig.code_hash,
         hash_type: sudtScriptConfig.hash_type as HashType,
@@ -125,7 +129,7 @@ export default class DefaultLightGodwokenV0 extends DefaultLightGodwoken impleme
   getBuiltinSUDTList(): SUDT[] {
     const map: SUDT[] = [];
     const sudtScriptConfig = this.provider.getConfig().layer1Config.SCRIPTS.sudt;
-    getTokenList(isMainnet).v0.forEach((token) => {
+    getTokenList().v0.forEach((token) => {
       const tokenL1Script: Script = {
         code_hash: sudtScriptConfig.code_hash,
         hash_type: sudtScriptConfig.hash_type as HashType,
@@ -143,10 +147,14 @@ export default class DefaultLightGodwokenV0 extends DefaultLightGodwoken impleme
   }
 
   async getErc20Balances(payload: GetErc20Balances): Promise<GetErc20BalancesResult> {
+    if (this.getConfig().layer2Config.MULTICALL_ADDRESS) {
+      return this.getErc20BalancesViaMulticall(payload);
+    }
     const result: GetErc20BalancesResult = { balances: [] };
     let promises = [];
     for (let index = 0; index < payload.addresses.length; index++) {
       const address = payload.addresses[index];
+
       const contract = new this.provider.web3.eth.Contract(SUDT_ERC20_PROXY_ABI as AbiItems, address);
       const erc20BalancePromise = contract.methods.balanceOf(this.provider.l2Address).call();
       promises.push(erc20BalancePromise);
@@ -157,6 +165,53 @@ export default class DefaultLightGodwokenV0 extends DefaultLightGodwoken impleme
       });
     });
     return result;
+  }
+
+  async getMulticallProvider(): Promise<Multicall | null> {
+    const rpcUrl = this.provider.getConfig().layer2Config.GW_POLYJUICE_RPC_URL;
+    const multicallContractAddress = this.getConfig().layer2Config.MULTICALL_ADDRESS;
+
+    if (!multicallContractAddress) {
+      return null;
+    }
+
+    if (!this.multicallProvider) {
+      const chainId = Number(await this.getChainId());
+      this.multicallProvider = new Multicall({
+        multicallAddress: multicallContractAddress,
+        chainId,
+        provider: new PolyjuiceHttpProvider(rpcUrl, {
+          web3Url: rpcUrl,
+          abiItems: SUDT_ERC20_PROXY_ABI as AbiItems,
+        }) as any as provider,
+      });
+    }
+
+    return this.multicallProvider;
+  }
+
+  async getErc20BalancesViaMulticall(payload: GetErc20Balances): Promise<GetErc20BalancesResult> {
+    const multicall = await this.getMulticallProvider();
+    if (!multicall) throw new Error("Cannot find MULTICALL_ADDRESS in the config");
+
+    const calls = payload.addresses.map((address) => {
+      const contract = new this.provider.web3.eth.Contract(SUDT_ERC20_PROXY_ABI as AbiItems, address);
+      return contract.methods.balanceOf(this.provider.l2Address);
+      // return new MulticallContract(address, [
+      //     {
+      //       stateMutability: "view",
+      //       inputs: [{ name: "_owner", type: "address" }],
+      //       name: "balanceOf",
+      //       outputs: [{ name: "balance", type: "uint256" }],
+      //       type: "function",
+      //     },
+      //   ]).balanceOf(this.provider.l2Address)
+    });
+
+    const balances = await multicall.aggregate(calls);
+    console.log("getErc20BalancesViaMulticall v0", balances);
+
+    return { balances: balances };
   }
 
   async getErc20Balance(address: HexString): Promise<Hexadecimal> {
