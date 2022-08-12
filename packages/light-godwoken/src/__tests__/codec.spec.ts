@@ -19,8 +19,8 @@ describe("test codec", () => {
     const depositArgs = {
       owner_lock_hash: "0xea8e5a6ed260ee56af7d66ddb8c7c09a3ade6c38d207c30a6d11b3d8e11387df",
       layer2_lock: {
-        code_hash: "0x07521d0aa8e66ef441ebc31204d86bb23fc83e9edc58c19dbb1b0ebe64336ec0",
-        hash_type: "type",
+        codeHash: "0x07521d0aa8e66ef441ebc31204d86bb23fc83e9edc58c19dbb1b0ebe64336ec0",
+        hashType: "type",
         args: "0x702359ea7f073558921eb50d8c1c77e92f760c8f8656bde4995f26b8963e2dd862a67949836b389ec146b3b2187e949f7faef679",
       },
       cancel_timeout: BI.from("0xc0000000000004b0"),
@@ -35,8 +35,8 @@ describe("test codec", () => {
     const depositArgs = {
       owner_lock_hash: "0xea8e5a6ed260ee56af7d66ddb8c7c09a3ade6c38d207c30a6d11b3d8e11387df",
       layer2_lock: {
-        code_hash: "0x07521d0aa8e66ef441ebc31204d86bb23fc83e9edc58c19dbb1b0ebe64336ec0",
-        hash_type: "type",
+        codeHash: "0x07521d0aa8e66ef441ebc31204d86bb23fc83e9edc58c19dbb1b0ebe64336ec0",
+        hashType: "type",
         args: "0x702359ea7f073558921eb50d8c1c77e92f760c8f8656bde4995f26b8963e2dd862a67949836b389ec146b3b2187e949f7faef679",
       },
       cancel_timeout: BI.from("0xc000000000093a81"),
