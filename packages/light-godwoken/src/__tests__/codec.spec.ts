@@ -1,15 +1,17 @@
-import { BI, core, toolkit } from "@ckb-lumos/lumos";
+import { BI, toolkit } from "@ckb-lumos/lumos";
 import { V0DepositLockArgs } from "../schemas/codecV0";
 import { V1DepositLockArgs } from "../schemas/codecV1";
 import { OmniLockWitnessLockCodec } from "../schemas/codecLayer1";
+import { bytes } from "@ckb-lumos/codec";
+import { blockchain } from "@ckb-lumos/base";
 describe("test codec", () => {
   it("should codec omnilock", async () => {
     const signature = "0x22506400d99d605caa6a047ea3146a0ef8ac87ad38cb4549b64ca025640315f6";
-    const serilized = new toolkit.Reader(
-      core.SerializeWitnessArgs({
-        lock: OmniLockWitnessLockCodec.pack({ signature }).buffer,
+    const serilized = bytes.hexify(
+      blockchain.WitnessArgs.pack({
+        lock: OmniLockWitnessLockCodec.pack({ signature }),
       }),
-    ).serializeJson();
+    );
 
     expect(serilized).toEqual(
       "0x4800000010000000480000004800000034000000340000001000000034000000340000002000000022506400d99d605caa6a047ea3146a0ef8ac87ad38cb4549b64ca025640315f6",
